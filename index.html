@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f6f5e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Home Tasks">
+<title>Home Tasks</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--ink:#1d2622;--mut:#66736d;--line:#dde3e0;--acc:#2f6f5e;--acc2:#e7f1ee;--red:#b3402f;--redbg:#fbecea;--amb:#9a6a00;--ambbg:#fdf4dc}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:90px}
+header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+header h1{font-size:19px;margin:0;flex:1}
+header small{opacity:.85}
+.wrap{max-width:640px;margin:0 auto;padding:12px 16px}
+.tabs{display:flex;gap:6px;margin:4px 0 12px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:15px;color:var(--ink)}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:18px 0 8px}
+h2.over{color:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.card.over{border-left:4px solid var(--red)}
+.card.today{border-left:4px solid var(--amb)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.title{font-weight:600;font-size:17px;flex:1}
+.meta{color:var(--mut);font-size:13px}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--acc2);color:var(--acc)}
+.pill.r{background:var(--redbg);color:var(--red)}.pill.a{background:var(--ambbg);color:var(--amb)}
+.note{white-space:pre-wrap;margin:6px 0}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.thumbs img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#eee}
+audio{width:100%;margin:4px 0;height:36px}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--acc);color:#fff;cursor:pointer}
+button.sec{background:var(--acc2);color:var(--acc)}
+button.danger{background:var(--redbg);color:var(--red)}
+button.link{background:none;color:var(--acc);padding:6px 0;text-decoration:underline}
+button:disabled{opacity:.5}
+input,textarea,select{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:80px}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet>div{background:var(--card);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 6px}
+.err{background:var(--redbg);color:var(--red);padding:10px;border-radius:10px;margin:10px 0;font-size:14px}
+.ok{background:var(--acc2);color:var(--acc);padding:10px;border-radius:10px;margin:10px 0;font-size:14px}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+.pw{position:relative}.pw button{position:absolute;right:6px;top:6px;padding:6px 10px;font-size:13px}
+.rec{display:flex;gap:8px;align-items:center}
+.rec .dot{width:10px;height:10px;border-radius:50%;background:var(--red);animation:b 1s infinite}
+@keyframes b{50%{opacity:.2}}
+.prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.prev span{position:relative}.prev img{width:70px;height:70px;object-fit:cover;border-radius:8px}
+.prev b{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#viewer{position:fixed;inset:0;background:#000d;z-index:30;display:none;align-items:center;justify-content:center}
+#viewer img{max-width:100%;max-height:100%}
+.lbl{font-size:12px;color:var(--mut);margin-top:8px;font-weight:600}
+</style>
+</head>
+<body>
+<header><h1>Home Tasks</h1><small id="who"></small><button id="outBtn" class="sec" style="display:none;padding:6px 10px;font-size:13px">Sign out</button></header>
+<div class="wrap" id="app"><div class="empty">Loading…</div></div>
+<button class="fab" id="fab" style="display:none" aria-label="Add task">+</button>
+<div id="viewer"><img alt=""></div>
+
+<script>
+const SUPA_URL = 'https://gjrmxwwujudgxkqkpyby.supabase.co';
+const SUPA_KEY = 'sb_publishable_EyqmNpJcErSFmE2BO9znAA_UFNmOlxX';
+const BUCKET = 'home-tasks';
+const MAX_VOICE = 180;
+
+const $ = (s, r=document) => r.querySelector(s);
+const app = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => new Date().toLocaleDateString('en-CA', {timeZone:'Africa/Johannesburg'});
+const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-ZA', {weekday:'short', day:'numeric', month:'short', year:'numeric'}) : '';
+const fmtTime = t => new Date(t).toLocaleString('en-ZA', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+const REPEAT = {none:'Once', daily:'Daily', weekly:'Weekly', monthly:'Monthly', quarterly:'Quarterly', yearly:'Yearly'};
+
+let sb = null, me = null, role = null, tab = 'todo', tasks = [], comps = [], members = {};
+
+if (!window.supabase) {
+  app.innerHTML = '<div class="err">The app could not load its sign-in library. Check your internet connection and refresh the page.</div>';
+} else {
+  sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+  init();
+}
+
+function friendly(e) {
+  const m = (e && (e.message || e.error_description || e)) + '';
+  if (/invalid login credentials/i.test(m)) return 'Wrong email or password. Check for typing mistakes, or use "Forgot password".';
+  if (/email not confirmed/i.test(m)) return 'This email address has not been confirmed yet.';
+  if (/failed to fetch|network|load failed/i.test(m)) return 'Could not reach the server. Check your internet connection (or switch between Wi-Fi and mobile data) and try again.';
+  if (/rate limit|too many/i.test(m)) return 'Too many attempts. Wait a few minutes and try again.';
+  return m;
+}
+
+async function init() {
+  sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') showNewPassword(); });
+  if (location.hash.includes('type=recovery')) return; // handled by event
+  const { data:{ session } } = await sb.auth.getSession();
+  if (session) await afterLogin(session.user); else showLogin();
+}
+
+function showLogin(msg) {
+  $('#fab').style.display = 'none'; $('#outBtn').style.display = 'none'; $('#who').textContent = '';
+  app.innerHTML = `
+  <div class="card" style="margin-top:20px">
+    <h3 style="margin-top:0">Sign in</h3>
+    ${msg ? `<div class="ok">${esc(msg)}</div>` : ''}
+    <form id="lf">
+      <label>Email</label><input id="em" type="email" autocomplete="username" autocapitalize="none" required>
+      <label>Password</label><div class="pw"><input id="pw" type="password" autocomplete="current-password" required><button type="button" class="sec" id="tg">Show</button></div>
+      <div id="le"></div>
+      <button style="width:100%;margin-top:14px" id="lb">Sign in</button>
+    </form>
+    <button class="link" id="fp">Forgot password?</button>
+  </div>`;
+  $('#tg').onclick = () => { const p = $('#pw'); const s = p.type === 'password'; p.type = s ? 'text' : 'password'; $('#tg').textContent = s ? 'Hide' : 'Show'; };
+  $('#lf').onsubmit = async e => {
+    e.preventDefault(); $('#le').innerHTML = ''; $('#lb').disabled = true; $('#lb').textContent = 'Signing in…';
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email: $('#em').value.trim().toLowerCase(), password: $('#pw').value });
+      if (error) throw error;
+      await afterLogin(data.user);
+    } catch (err) {
+      $('#le').innerHTML = `<div class="err">${esc(friendly(err))}</div>`;
+      $('#lb').disabled = false; $('#lb').textContent = 'Sign in';
+    }
+  };
+  $('#fp').onclick = async () => {
+    const em = $('#em').value.trim().toLowerCase();
+    if (!em) { $('#le').innerHTML = '<div class="err">Type your email address first, then tap "Forgot password".</div>'; return; }
+    const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname });
+    $('#le').innerHTML = error ? `<div class="err">${esc(friendly(error))}</div>` : '<div class="ok">If that email is set up, a reset link is on its way. Open it on this phone.</div>';
+  };
+}
+
+function showNewPassword() {
+  app.innerHTML = `<div class="card" style="margin-top:20px"><h3 style="margin-top:0">Choose a new password</h3>
+  <form id="nf"><label>New password (at least 6 characters)</label><div class="pw"><input id="np" type="password" minlength="6" autocomplete="new-password" required><button type="button" class="sec" id="tg">Show</button></div>
+  <div id="ne"></div><button style="width:100%;margin-top:14px">Save password</button></form></div>`;
+  $('#tg').onclick = () => { const p = $('#np'); const s = p.type === 'password'; p.type = s ? 'text' : 'password'; $('#tg').textContent = s ? 'Hide' : 'Show'; };
+  $('#nf').onsubmit = async e => {
+    e.preventDefault();
+    const { data, error } = await sb.auth.updateUser({ password: $('#np').value });
+    if (error) { $('#ne').innerHTML = `<div class="err">${esc(friendly(error))}</div>`; return; }
+    history.replaceState(null, '', location.pathname);
+    await afterLogin(data.user);
+  };
+}
+
+async function afterLogin(user) {
+  me = user;
+  const { data, error } = await sb.from('home_members').select('user_id, role, display_name');
+  if (error) { app.innerHTML = `<div class="err">${esc(friendly(error))}</div>`; return; }
+  members = Object.fromEntries((data || []).map(m => [m.user_id, m]));
+  const mine = members[me.id];
+  if (!mine) {
+    await sb.auth.signOut();
+    showLogin(); $('#le').innerHTML = '<div class="err">This login is not set up for Home Tasks.</div>'; return;
+  }
+  role = mine.role;
+  $('#who').textContent = mine.display_name;
+  $('#outBtn').style.display = '';
+  $('#outBtn').onclick = async () => { await sb.auth.signOut(); showLogin(); };
+  $('#fab').style.display = role === 'owner' ? '' : 'none';
+  $('#fab').onclick = () => taskForm();
+  await load();
+}
+
+async function load() {
+  const [t, c] = await Promise.all([
+    sb.from('home_tasks').select('*').eq('done', false).order('next_due'),
+    sb.from('home_completions').select('*').order('done_at', { ascending:false }).limit(100)
+  ]);
+  if (t.error || c.error) { app.innerHTML = `<div class="err">${esc(friendly(t.error || c.error))}</div>`; return; }
+  tasks = t.data; comps = c.data;
+  render();
+}
+
+const urlCache = {};
+async function signed(paths) {
+  const need = paths.filter(p => p && !urlCache[p]);
+  if (need.length) {
+    const { data } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600);
+    (data || []).forEach(d => { if (d.signedUrl) urlCache[d.path] = d.signedUrl; });
+  }
+}
+function mediaHtml(photos, voice) {
+  let h = '';
+  if (photos && photos.length) h += `<div class="thumbs">${photos.map(p => `<img data-p="${esc(p)}" alt="photo" loading="lazy">`).join('')}</div>`;
+  if (voice && voice.path) h += `<audio controls preload="none" data-a="${esc(voice.path)}"></audio>`;
+  return h;
+}
+async function hydrate() {
+  const ps = [...app.querySelectorAll('[data-p],[data-a]')].map(el => el.dataset.p || el.dataset.a);
+  await signed(ps);
+  app.querySelectorAll('[data-p]').forEach(el => { el.src = urlCache[el.dataset.p] || ''; el.onclick = () => view(el.src); });
+  app.querySelectorAll('[data-a]').forEach(el => { el.src = urlCache[el.dataset.a] || ''; });
+}
+function view(src) { const v = $('#viewer'); v.querySelector('img').src = src; v.style.display = 'flex'; v.onclick = () => v.style.display = 'none'; }
+
+function render() {
+  const today = todayStr();
+  let h = `<div class="tabs"><button data-t="todo" class="${tab==='todo'?'on':''}">To do (${tasks.length})</button><button data-t="done" class="${tab==='done'?'on':''}">Done</button></div>`;
+  if (tab === 'todo') {
+    const over = tasks.filter(t => t.next_due < today), tod = tasks.filter(t => t.next_due === today), up = tasks.filter(t => t.next_due > today);
+    if (!tasks.length) h += `<div class="empty">Nothing to do. ${role === 'owner' ? 'Tap + to add a task.' : ''}</div>`;
+    if (over.length) h += `<h2 class="over">Overdue</h2>` + over.map(t => taskCard(t, 'over')).join('');
+    if (tod.length) h += `<h2>Today</h2>` + tod.map(t => taskCard(t, 'today')).join('');
+    if (up.length) h += `<h2>Coming up</h2>` + up.map(t => taskCard(t, '')).join('');
+  } else {
+    h += comps.length ? comps.map(compCard).join('') : '<div class="empty">No finished jobs yet.</div>';
+  }
+  app.innerHTML = h;
+  app.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+  app.querySelectorAll('[data-done]').forEach(b => b.onclick = () => doneForm(tasks.find(t => t.id === b.dataset.done)));
+  app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => taskForm(tasks.find(t => t.id === b.dataset.edit)));
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => delTask(tasks.find(t => t.id === b.dataset.del)));
+  app.querySelectorAll('[data-delc]').forEach(b => b.onclick = () => delComp(comps.find(c => c.id === b.dataset.delc)));
+  hydrate();
+}
+function taskCard(t, cls) {
+  const pill = cls === 'over' ? '<span class="pill r">Overdue</span>' : cls === 'today' ? '<span class="pill a">Today</span>' : '';
+  return `<div class="card ${cls}">
+    <div class="row"><div class="title">${esc(t.title)}</div>${pill}<span class="pill">${REPEAT[t.repeat] || t.repeat}</span></div>
+    <div class="meta">Due ${fmtDate(t.next_due)}</div>
+    ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
+    ${mediaHtml(t.photos, t.voice)}
+    <div class="row" style="margin-top:8px"><button data-done="${t.id}">Mark done</button>
+    ${role === 'owner' ? `<button class="sec" data-edit="${t.id}">Edit</button><button class="danger" data-del="${t.id}">Delete</button>` : ''}</div>
+  </div>`;
+}
+function compCard(c) {
+  const by = members[c.done_by]?.display_name || '';
+  return `<div class="card">
+    <div class="row"><div class="title">${esc(c.task_title)}</div><span class="pill">Done</span></div>
+    <div class="meta">${fmtTime(c.done_at)}${by ? ' · ' + esc(by) : ''}${c.due_date ? ' · was due ' + fmtDate(c.due_date) : ''}</div>
+    ${(c.before_photos?.length || c.before_voice) ? `<div class="lbl">BEFORE</div>${mediaHtml(c.before_photos, c.before_voice)}` : ''}
+    ${(c.photos?.length || c.voice || c.note) ? `<div class="lbl">AFTER</div>` : ''}
+    ${c.note ? `<div class="note">${esc(c.note)}</div>` : ''}
+    ${mediaHtml(c.photos, c.voice)}
+    ${role === 'owner' ? `<button class="link" data-delc="${c.id}" style="color:var(--red)">Remove from list</button>` : ''}
+  </div>`;
+}
+
+async function compress(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+  } catch { return file; }
+}
+function photoPicker(box, list) {
+  box.innerHTML = `<input type="file" accept="image/*" multiple><div class="prev"></div>`;
+  const inp = box.querySelector('input'), prev = box.querySelector('.prev');
+  const draw = () => {
+    prev.innerHTML = list.map((it, i) => `<span><img src="${it.url}"><b data-i="${i}">×</b></span>`).join('');
+    prev.querySelectorAll('b').forEach(b => b.onclick = () => { list.splice(+b.dataset.i, 1); draw(); });
+  };
+  inp.onchange = async () => { for (const f of inp.files) { const blob = await compress(f); list.push({ blob, url: URL.createObjectURL(blob) }); } inp.value = ''; draw(); };
+  draw();
+}
+function voiceRecorder(box, state) {
+  const draw = () => {
+    if (state.rec) box.innerHTML = `<div class="rec"><span class="dot"></span><span id="vt">0:00</span><button type="button" class="danger" id="vs">Stop</button></div>`;
+    else if (state.blob || state.existing) box.innerHTML = `<audio controls src="${state.url || ''}"></audio><button type="button" class="link" id="vx" style="color:var(--red)">Remove voice note</button>`;
+    else box.innerHTML = `<button type="button" class="sec" id="vr">🎤 Record voice note (max 3 min)</button>`;
+    $('#vr', box) && ($('#vr', box).onclick = start);
+    $('#vs', box) && ($('#vs', box).onclick = () => state.rec.stop());
+    $('#vx', box) && ($('#vx', box).onclick = () => { state.blob = null; state.existing = null; state.url = null; draw(); });
+  };
+  async function start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/aac'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+      const chunks = []; const t0 = Date.now();
+      rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+      rec.onstop = () => {
+        clearInterval(state.timer); stream.getTracks().forEach(t => t.stop());
+        const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
+        state.blob = new Blob(chunks, { type }); state.mime = type; state.secs = Math.round((Date.now() - t0) / 1000);
+        state.url = URL.createObjectURL(state.blob); state.rec = null; draw();
+      };
+      rec.start(); state.rec = rec; draw();
+      state.timer = setInterval(() => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        const el = $('#vt', box); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        if (s >= MAX_VOICE && rec.state === 'recording') rec.stop();
+      }, 250);
+    } catch (e) { alertBox(box, 'Could not use the microphone. Allow microphone access for this site in your phone settings.'); }
+  }
+  draw();
+}
+function alertBox(el, msg) { const d = document.createElement('div'); d.className = 'err'; d.textContent = msg; el.after(d); setTimeout(() => d.remove(), 6000); }
+
+async function upload(blob, folder, ext) {
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || undefined, upsert:false });
+  if (error) throw error;
+  return path;
+}
+const extFor = m => ({ 'audio/mp4':'m4a', 'audio/webm':'webm', 'audio/aac':'aac', 'audio/mpeg':'mp3', 'audio/ogg':'ogg' }[m] || 'webm');
+
+function sheet(html) {
+  const s = document.createElement('div'); s.className = 'sheet'; s.innerHTML = `<div>${html}</div>`;
+  document.body.appendChild(s); s.onclick = e => { if (e.target === s) s.remove(); };
+  return s;
+}
+
+function taskForm(t) {
+  const edit = !!t;
+  const s = sheet(`<h3>${edit ? 'Edit task' : 'New task'}</h3>
+    <label>What needs cleaning?</label><input id="ft" value="${esc(t?.title || '')}" placeholder="e.g. Clean oven">
+    <label>Note</label><textarea id="fn" placeholder="Instructions">${esc(t?.note || '')}</textarea>
+    <label>Photos</label><div id="fph"></div>
+    ${edit && t.photos?.length ? `<div class="meta">${t.photos.length} existing photo(s) kept</div>` : ''}
+    <label>Voice note</label><div id="fv"></div>
+    <label>${edit ? 'Next due date' : 'Date'}</label><input id="fd" type="date" value="${t?.next_due || todayStr()}">
+    <label>Repeat</label><select id="fr">${Object.entries(REPEAT).map(([k, v]) => `<option value="${k}" ${t?.repeat === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+    <div id="fe"></div>
+    <div class="row" style="margin-top:14px"><button id="fs" style="flex:1">${edit ? 'Save' : 'Add task'}</button><button class="sec" id="fc">Cancel</button></div>`);
+  const photos = []; const voice = { existing: t?.voice || null };
+  photoPicker($('#fph', s), photos);
+  if (voice.existing) signed([voice.existing.path]).then(() => { voice.url = urlCache[voice.existing.path]; voiceRecorder($('#fv', s), voice); });
+  else voiceRecorder($('#fv', s), voice);
+  $('#fc', s).onclick = () => s.remove();
+  $('#fs', s).onclick = async () => {
+    const title = $('#ft', s).value.trim();
+    if (!title) { $('#fe', s).innerHTML = '<div class="err">Give the task a name.</div>'; return; }
+    if (voice.rec) { $('#fe', s).innerHTML = '<div class="err">Stop the voice recording first.</div>'; return; }
+    const btn = $('#fs', s); btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const folder = 'tasks/' + (t?.id || crypto.randomUUID());
+      const newPaths = [];
+      for (const p of photos) newPaths.push(await upload(p.blob, folder, 'jpg'));
+      let v = voice.existing;
+      if (voice.blob) v = { path: await upload(voice.blob, folder, extFor(voice.mime)), mime: voice.mime, secs: voice.secs };
+      const d = $('#fd', s).value || todayStr();
+      const row = { title, note: $('#fn', s).value.trim(), photos: [...(t?.photos || []), ...newPaths], voice: v, next_due: d, repeat: $('#fr', s).value };
+      const res = edit ? await sb.from('home_tasks').update(row).eq('id', t.id) : await sb.from('home_tasks').insert({ ...row, start_date: d });
+      if (res.error) throw res.error;
+      s.remove(); await load();
+    } catch (e) { $('#fe', s).innerHTML = `<div class="err">${esc(friendly(e))}</div>`; btn.disabled = false; btn.textContent = edit ? 'Save' : 'Add task'; }
+  };
+}
+
+async function delTask(t) {
+  if (!confirm(`Delete "${t.title}"?`)) return;
+  const { error } = await sb.from('home_tasks').delete().eq('id', t.id);
+  if (error) { alert(friendly(error)); return; }
+  await load();
+}
+async function delComp(c) {
+  if (!confirm(`Remove "${c.task_title}" from the Done list?`)) return;
+  const { error } = await sb.from('home_completions').delete().eq('id', c.id);
+  if (error) { alert(friendly(error)); return; }
+  await load();
+}
+
+function addPeriod(dateStr, rep) {
+  const d = new Date(dateStr + 'T12:00:00');
+  if (rep === 'daily') d.setDate(d.getDate() + 1);
+  else if (rep === 'weekly') d.setDate(d.getDate() + 7);
+  else {
+    const m = { monthly:1, quarterly:3, yearly:12 }[rep]; const day = d.getDate();
+    d.setDate(1); d.setMonth(d.getMonth() + m);
+    d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+  }
+  return d.toLocaleDateString('en-CA');
+}
+function nextDue(t) {
+  const today = todayStr(); let n = addPeriod(t.next_due, t.repeat);
+  while (n <= today) n = addPeriod(n, t.repeat);
+  return n;
+}
+function doneForm(t) {
+  const s = sheet(`<h3>Done: ${esc(t.title)}</h3>
+    <label>After photos</label><div id="dph"></div>
+    <label>Note (optional)</label><textarea id="dn"></textarea>
+    <label>Voice note (optional)</label><div id="dv"></div>
+    ${t.repeat !== 'none' ? `<div class="meta" style="margin-top:10px">This repeats ${REPEAT[t.repeat].toLowerCase()} — next one will be due ${fmtDate(nextDue(t))}.</div>` : ''}
+    <div id="de"></div>
+    <div class="row" style="margin-top:14px"><button id="ds" style="flex:1">Save as done</button><button class="sec" id="dc">Cancel</button></div>`);
+  const photos = []; const voice = {};
+  photoPicker($('#dph', s), photos); voiceRecorder($('#dv', s), voice);
+  $('#dc', s).onclick = () => s.remove();
+  $('#ds', s).onclick = async () => {
+    if (voice.rec) { $('#de', s).innerHTML = '<div class="err">Stop the voice recording first.</div>'; return; }
+    const btn = $('#ds', s); btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const folder = 'done/' + t.id;
+      const paths = []; for (const p of photos) paths.push(await upload(p.blob, folder, 'jpg'));
+      const v = voice.blob ? { path: await upload(voice.blob, folder, extFor(voice.mime)), mime: voice.mime, secs: voice.secs } : null;
+      const ins = await sb.from('home_completions').insert({
+        task_id: t.id, task_title: t.title, due_date: t.next_due, photos: paths, before_photos: t.photos || [],
+        voice: v, before_voice: t.voice, note: $('#dn', s).value.trim()
+      });
+      if (ins.error) throw ins.error;
+      const upd = t.repeat === 'none'
+        ? { done: true, done_at: new Date().toISOString() }
+        : { next_due: nextDue(t), done_at: new Date().toISOString() };
+      const u = await sb.from('home_tasks').update(upd).eq('id', t.id);
+      if (u.error) throw u.error;
+      s.remove(); await load();
+    } catch (e) { $('#de', s).innerHTML = `<div class="err">${esc(friendly(e))}</div>`; btn.disabled = false; btn.textContent = 'Save as done'; }
+  };
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && role) load(); });
+</script>
+</body>
+</html>
